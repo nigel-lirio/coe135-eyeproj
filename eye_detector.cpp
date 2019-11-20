@@ -16,7 +16,8 @@ void detectEyes(cv::Mat &frame, cv::CascadeClassifier &faceCascade, cv::CascadeC
   std::vector<cv::Rect> eyes;
   eyeCascade.detectMultiScale(face, eyes, 1.1, 2, 0 | CV_HAAR_SCALE_IMAGE, cv::Size(150, 150)); // same thing as above  
   rectangle(frame, faces[0].tl(), faces[0].br(), cv::Scalar(255, 0, 0), 2);
-  if (eyes.size() != 2) return; // both eyes were not detected
+  //if (eyes.size() != 2) return; // both eyes were not detected
+  std::cout << "yes";
   for (cv::Rect &eye : eyes)
   {
       rectangle(frame, faces[0].tl() + eye.tl(), faces[0].tl() + eye.br(), cv::Scalar(0, 255, 0), 2);
@@ -27,7 +28,7 @@ int main()
 {
   cv::CascadeClassifier faceCascade;
   cv::CascadeClassifier eyeCascade;
-  if (!faceCascade.load("./haarcascade_frontalface_alt.xml"))
+  if (!faceCascade.load("./haarcascade_frontalface_default.xml"))
   {
       std::cerr << "Could not load face detector." << std::endl;
       return -1;
