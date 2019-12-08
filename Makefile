@@ -4,6 +4,6 @@ LD_FLAGS=$(OPENCV_LIBS)
 
 default: EyeDetector
 EyeDetector: eye_detector.cpp
-  g++ $(CPP_FLAGS) $^ -o eyep $(LD_FLAGS)
+	g++ $(CPP_FLAGS) $^ -o eyep $(LD_FLAGS)
 clean:
-  rm -f EyeDetector
+	rm -f EyeDetector
