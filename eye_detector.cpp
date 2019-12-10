@@ -1,8 +1,15 @@
 #include <iostream>
+#include <fcntl.h> 
+#include <sys/stat.h> 
+#include <sys/types.h> 
+#include <unistd.h> 
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/objdetect/objdetect.hpp> 
+
+int deltaP[2];
+
 cv::Rect getLeftmostEye(std::vector<cv::Rect> &eyes)
 {
   int leftmost = 99999999;
@@ -103,6 +110,10 @@ void detectEyes(cv::Mat &frame, cv::CascadeClassifier &faceCascade, cv::CascadeC
       int radius = (int)eyeball[2];
       cv::circle(frame, faces[0].tl() + eyeRect.tl() + center, radius, cv::Scalar(0, 0, 255), 2);
       cv::circle(eye, center, radius, cv::Scalar(255, 255, 255), 2);
+      if(centers.size() > 1){
+        deltaP[0] = center.x * 30;
+        deltaP[1] = center.y * -40;
+      }
   }
     cv::imshow("Eye", eye);
 }
@@ -128,12 +139,18 @@ int main()
       return -1;
   }
   cv::Mat frame;
+  char * fifo = "/mouse_fifo"; 
+  mkfifo(fifo, 0666);
+  int fd;
   while (1)
   {
-      cap >> frame; // outputs the webcam image to a Mat
-      detectEyes(frame, faceCascade, eyeCascade);
-      cv::imshow("Webcam", frame); // displays the Mat
-      cvWaitKey(30);
+        fd = open(fifo,O_WRONLY);
+        cap >> frame; // outputs the webcam image to a Mat
+        detectEyes(frame, faceCascade, eyeCascade);
+        cv::imshow("Webcam", frame); // displays the Mat
+        cvWaitKey(30);
+        write(fd, deltaP, sizeof(deltaP));
+        close(fd);
   }
   return 0;
 }

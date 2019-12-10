@@ -1,10 +1,14 @@
 #include <iostream>
+#include <sys/ipc.h> 
+#include <sys/shm.h> 
+#include <stdio.h> 
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/objdetect/objdetect.hpp>
 using namespace std;
 vector<cv::Point> ctr_list;
+int deltaP[2];
 
 //Algorithm for Eye Tracking based 
 
@@ -22,7 +26,6 @@ cv::Rect getLeft(std::vector<cv::Rect> &eye_reg){
         }
         
     }
-    cout << left_h;
     return eye_reg[left_m];
     
 }
@@ -89,7 +92,6 @@ void detect_frame(cv::Mat &img, cv::CascadeClassifier &f_Cascade, cv::CascadeCla
     vector<cv::Rect> face_region;
     f_Cascade.detectMultiScale(bw, face_region, 1.1, 2, 0 | CV_HAAR_SCALE_IMAGE, cv::Size(150, 150));
     if (face_region.size() == 0) return;
-    std::cout << "FACE";
     cv::Mat face = img(face_region[0]);
     //DETECT EYES FROM FACE REGION
     vector<cv::Rect> eye_region;
@@ -114,6 +116,10 @@ void detect_frame(cv::Mat &img, cv::CascadeClassifier &f_Cascade, cv::CascadeCla
         int rad = (int)iris[2];
         cv::circle(img, face_region[0].tl() + eye_square.tl() + ctr, rad, cv::Scalar(0, 0, 255), 2);
         cv::circle(eyez, ctr, rad, cv::Scalar(255, 255, 255), 2);
+        if(ctr_list.size() > 1){
+            deltaP[0] = ctr.x * 30;
+            deltaP[1] = ctr.y * -40;
+        }
     }
     cv::imshow("Eye Region:", eyez);
 
@@ -139,14 +145,32 @@ int main(){
         return -1;
     }
     cv::Mat frame;
+    //char * fifo = "/mouse_fifo"; 
+    //mkfifo(fifo, 0666);
+    int fd;
+    cout << sizeof(deltaP);
     while (1)
     {
+       /// fd = open(fifo,O_WRONLY);
         cap >> frame; // outputs the webcam image to a Mat
         detect_frame(frame, faceCascade, eyeCascade);
         cv::imshow("Webcam", frame); // displays the Mat
+        cout << deltaP[0];
+       // write(fd, deltaP, sizeof(deltaP));
         cvWaitKey(30);
-    }
-    return 0;
-        
+       // close(fd);
     
+    int SizeMem;
+    // ftok to generate unique key 
+    key_t key = ftok("shmfile",65); 
+    
+    SizeMem= sizeof(*deltaP) *2;
+    // shmget returns an identifier in shmid 
+    int shmid = shmget(key,s1024,(IPC_CREAT | IPC_EXCL)); 
+    // shmat to attach to shared memory 
+    int *str = (int *) shmat(shmid, 0,0);
+    str = deltaP; 
+    //detach from shared memory  
+    shmdt((void *) str);         
+    }
 }
