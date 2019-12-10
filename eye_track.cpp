@@ -4,6 +4,10 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/objdetect/objdetect.hpp>
 using namespace std;
+vector<cv::Point> ctr_list;
+
+//Algorithm for Eye Tracking based 
+
 cv::Rect getLeft(std::vector<cv::Rect> &eye_reg){
     //selects left eye
     int left_h = 999999999;
@@ -18,6 +22,7 @@ cv::Rect getLeft(std::vector<cv::Rect> &eye_reg){
         }
         
     }
+    cout << left_h;
     return eye_reg[left_m];
     
 }
@@ -25,10 +30,10 @@ cv::Vec3f getIris(cv::Mat eye, vector<cv::Vec3f> circle_objs){
     //Assumption: IRIS -> Circle with the most black/dark pixels
     vector<int> sum_list(circle_objs.size(), 0);
     //Get Sum of each circles
-    for (int i = 0; i < eye.row; i++)
+    for (int i = 0; i < eye.rows; i++)
     {
         uchar *point = eye.ptr<uchar>(i);
-        for (int k = 0; k < eye.col; k++)
+        for (int k = 0; k < eye.cols; k++)
         {
             int val = static_cast<int>(*point);
             for (int j = 0; j < circle_objs.size(); j++)
@@ -45,7 +50,7 @@ cv::Vec3f getIris(cv::Mat eye, vector<cv::Vec3f> circle_objs){
         }
     }
     //Smallest sum -> Circle with most black/dark pixels
-    int min_sum = 99999999999;
+    int min_sum = 99999999;
     int min_i = -1;
     for (int q = 0; q < circle_objs.size(); q++)
     {
@@ -57,6 +62,23 @@ cv::Vec3f getIris(cv::Mat eye, vector<cv::Vec3f> circle_objs){
         
     }
     return circle_objs[min_i];
+}
+cv::Point stabilize(std::vector<cv::Point> &points, int windowSize)
+{
+  float sX = 0, sY = 0;
+  int count = 0;
+  for (int i = std::max(0, (int)(points.size() - windowSize)); i < points.size(); i++)
+  {
+      sX += points[i].x;
+      sY += points[i].y;
+      ++count;
+  }
+  if (count > 0)
+  {
+      sX /= count;
+      sY /= count;
+  }
+  return cv::Point(sX, sY);
 }
 void detect_frame(cv::Mat &img, cv::CascadeClassifier &f_Cascade, cv::CascadeClassifier &e_Cascade){
 
@@ -79,12 +101,21 @@ void detect_frame(cv::Mat &img, cv::CascadeClassifier &f_Cascade, cv::CascadeCla
         rectangle(img, face_region[0].tl() + eye.tl(), face_region[0].tl() + eye.br(), cv::Scalar(0, 255, 0), 2);
     }
     cv::Rect eye_square = getLeft(eye_region);
-    cv::Mat eye = face(eye_square);
-    cv::equalizeHist(eye, eye);
+    cv::Mat eyez = face(eye_square);
+    cv::cvtColor(eyez, eyez, CV_BGR2GRAY); 
+    cv::equalizeHist(eyez, eyez);
     vector<cv::Vec3f> cir_objs;
-    cv::HoughCircles(eye, cir_objs, CV_HOUGH_GRADIENT, 1, eye.cols / 8, 250, 15, eye.rows / 8, eye.rows / 3);
-    cv::Vec3f iris = getIris(eye, cir_objs);
-    
+    cv::HoughCircles(eyez, cir_objs, CV_HOUGH_GRADIENT, 1, eyez.cols / 8, 250, 15, eyez.rows / 8, eyez.rows / 3);
+    if (cir_objs.size() > 0){
+        cv::Vec3f iris = getIris(eyez, cir_objs);
+        cv::Point ctr(iris[0], iris[1]);
+        ctr_list.push_back(ctr);
+        ctr = stabilize(ctr_list, 5);
+        int rad = (int)iris[2];
+        cv::circle(img, face_region[0].tl() + eye_square.tl() + ctr, rad, cv::Scalar(0, 0, 255), 2);
+        cv::circle(eyez, ctr, rad, cv::Scalar(255, 255, 255), 2);
+    }
+    cv::imshow("Eye Region:", eyez);
 
 }
 
